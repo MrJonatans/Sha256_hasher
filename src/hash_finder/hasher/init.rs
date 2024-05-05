@@ -9,7 +9,7 @@ pub fn generate_blocks(message: &str) -> Vec<[u32; 64]> {
 
     let payload: u64 = message_len + field_len as u64;
     let mut padding: u64 = 64u64 - payload % 64;
-    let block_count: u64 = (payload >> 7) + 1u64;
+    let block_count: u64 = (payload >> 6) + 1u64;
     let mut blocks: Vec<[u8; 64]> = Vec::new();
 
     blocks.resize(block_count as usize, [0x00; 64]);
@@ -42,10 +42,7 @@ pub fn generate_blocks(message: &str) -> Vec<[u32; 64]> {
             }
         }
     }
-
-    let mut blocks: Vec<[u32; 64]> = refactor_to64(blocks);
-
-    return blocks;
+    return refactor_to64(blocks);
 }
 
 fn refactor_to64(blocks: Vec<[u8; 64]>) -> Vec<[u32; 64]> {
@@ -65,9 +62,24 @@ fn refactor_to64(blocks: Vec<[u8; 64]>) -> Vec<[u32; 64]> {
             }
         }
         for i in 16..64 {
-            block32[i] = block32[i - 16] + C0(block32[i - 7]) + block32[i - 7] + C1(block32[i - 2]);
+            block32[i] = block32[i - 16]
+                .wrapping_add(s0(block32[i - 15]))
+                .wrapping_add(block32[i - 7])
+                .wrapping_add(s1(block32[i - 2]));
         }
     }
 
     return blocks32;
+}
+
+fn right_rotate_32(n: u32, d: u32) -> u32 {
+    return (n >> d) | (n << (32 - d));
+}
+
+fn s0(byte: u32) -> u32 {
+    return right_rotate_32(byte, 7u32) ^ right_rotate_32(byte, 18u32) ^ (byte >> 3);
+}
+
+fn s1(byte: u32) -> u32 {
+    return right_rotate_32(byte, 17u32) ^ right_rotate_32(byte, 19u32) ^ (byte >> 10);
 }
